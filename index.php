@@ -1,39 +1,39 @@
 <?php
+require_once("config.php");
+require_once("vue_prenom.php");
+require_once("vue_jeu.php");
+
 session_start();
 
-// Informations de connexion à la base de données (à personnaliser avec vos informations)
-$servername = "localhost";
-$username = "votre_nom_utilisateur";
-$password = "votre_mot_de_passe";
-$dbname = "nom_de_la_base_de_donnees";
+$vue = "non_definie";
+
+// Vérification si la session doit être réinitialisée
+if (isset($_GET['reset'])) {
+    session_unset();
+    $vue = "vue_prenom";
+//    header("Location: game.php");
+//    exit();
+}
+
 
 try {
     // Connexion à la base de données avec PDO
-    $conn = new PDO("mysql:host=$servername;dbname=$dbname", $username, $password);
+    $dsn = "mysql:host=" . MYSQL_HOST . ";dbname=" . MYSQL_DB;
+    $conn = new PDO($dsn, MYSQL_USER, MYSQL_PWD);
     $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-
-    // Vérification si la session doit être réinitialisée
-    if (isset($_GET['reset'])) {
-        session_destroy();
-        header("Location: game.php");
-        exit();
-    }
 
     // Vérification si le prénom existe dans la session
     if (isset($_SESSION['prenom'])) {
         $prenom = $_SESSION['prenom'];
     } else {
         // Affichage du formulaire pour demander le prénom
-        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['prenom'])) {
+        if (
+            $_SERVER['REQUEST_METHOD'] === 'POST' &&
+            isset($_POST['prenom'])
+            ) {
             $prenom = $_POST['prenom'];
             $_SESSION['prenom'] = $prenom;
         } else {
-            // Affichage du formulaire de saisie du prénom et liste des joueurs
-            echo '<form method="POST" action="">';
-            echo '<label for="prenom">Entrez votre prénom :</label>';
-            echo '<input type="text" id="prenom" name="prenom" required>';
-            echo '<button type="submit">Commencer</button>';
-            echo '</form>';
 
             // Récupération de la liste des joueurs classés par moyenne du nombre de tentatives
             $sql = "SELECT prenom, AVG(tentatives) AS moyenne_tentatives FROM parties GROUP BY prenom ORDER BY moyenne_tentatives";
@@ -41,12 +41,7 @@ try {
             $stmt->execute();
             $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-            echo '<h3>Liste des joueurs :</h3>';
-            echo '<ul>';
-            foreach ($result as $row) {
-                echo '<li>' . $row['prenom'] . ' - Moyenne : ' . $row['moyenne_tentatives'] . '</li>';
-            }
-            echo '</ul>';
+            echo vue_prenom();
 
             exit();
         }
@@ -99,39 +94,14 @@ try {
     die("Erreur de connexion à la base de données : " . $e->getMessage());
 }
 
-?>
+if ($vue == "vue_jeu") {
+    echo vue_jeu();
+} elseif ($vue == "vue_prenom") {
+    echo "Vue prénom ?";
+} else {
+    die("Erreur: vue $vue inconnue");
+}
 
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Mini jeu PHP</title>
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
-</head>
-<body>
-    <div class="container">
-        <h1>Mini jeu PHP</h1>
-        <p>Bienvenue, <?php echo $prenom; ?> !</p>
-        <p>Nombre de parties jouées : <?php echo $nbParties; ?></p>
-        <p>Nombre de tentatives totales : <?php echo $totalTentatives; ?></p>
-        <p>Moyenne du nombre de tentatives pour réussir : <?php echo $moyenneTentatives; ?></p>
-        <p>Partie la plus courte : <?php echo $minTentatives; ?> tentatives</p>
-        <p>Partie avec le plus de tentatives : <?php echo $maxTentatives; ?> tentatives</p>
-        <hr>
-        <h3><?php echo $message; ?></h3>
-        <?php if (!isset($_SESSION['nombreTire'])) : ?>
-            <form method="POST" action="">
-                <input type="number" name="tentative" required>
-                <button type="submit">Tenter</button>
-            </form>
-        <?php else : ?>
-            <button onclick="window.location.reload();">Commencer une partie</button>
-        <?php endif; ?>
-        <a href="game.php?reset=true">Réinitialiser la session</a>
-    </div>
-</body>
-</html>
-
-<?php
 // Fermeture de la connexion à la base de données
 $conn = null;
 ?>
